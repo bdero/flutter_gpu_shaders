@@ -1,0 +1,21 @@
+name: flutter_gpu_shaders
+description: "Build tools for Flutter GPU shader bundles/libraries."
+version: 0.1.0
+homepage: https://github.com/bdero/flutter_gpu_shaders
+
+environment:
+  sdk: ^3.4.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  logging: ^1.2.0
+  native_assets_cli: ^0.7.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
