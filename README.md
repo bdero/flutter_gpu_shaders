@@ -42,14 +42,14 @@ Use native asset build hooks to import Flutter GPU shader bundle assets.
     ```yaml
     flutter:
       assets:
-        - build/*.shaderbundle.json
+        - build/shaderbundles/*.shaderbundle.json
     ```
 6. You can now import the built shader bundle as a library using `gpu.ShaderLibrary.fromAsset` in your project. For example:
     ```dart
     import 'package:flutter_gpu/gpu.dart' as gpu;
     
     final String _kBaseShaderBundlePath =
-        'packages/my_project/build/my_cool_bundle.shaderbundle';
+        'packages/my_project/build/shaderbundles/my_cool_bundle.shaderbundle';
     
     gpu.ShaderLibrary? _baseShaderLibrary = null;
     gpu.ShaderLibrary get baseShaderLibrary {
