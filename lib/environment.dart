@@ -15,27 +15,28 @@ const _impellercLocations = [
 ];
 
 /// Locate the engine artifacts cache directory in the Flutter SDK.
-Uri findEngineArtifactsDir() {
+Uri findEngineArtifactsDir({String? dartPath}) {
   // Could be:
   //   `/path/to/flutter/bin/cache/dart-sdk/bin/dart`
   //   `/path/to/flutter/bin/cache/artifacts/engine/darwin-x64/flutter_tester`
-  final Uri dartExec = Uri.file(Platform.resolvedExecutable);
+  //   `/path/to/.puro/shared/caches/94cf8c8fad31206e440611e309757a5a9b3be712/dart-sdk/bin/dart`
+  final Uri dartExec = Uri.file(dartPath ?? Platform.resolvedExecutable);
   logger.info('Dart executable: `${dartExec.toFilePath()}`');
 
   Uri? cacheDir;
   // Search backwards through the segment list until finding `bin` and `cache` in sequence.
   for (var i = dartExec.pathSegments.length - 1; i >= 0; i--) {
-    if (dartExec.pathSegments[i] == 'cache' &&
-        i > 1 &&
-        dartExec.pathSegments[i - 1] == 'bin') {
+    if (dartExec.pathSegments[i] == 'dart-sdk' ||
+        dartExec.pathSegments[i] == 'artifacts') {
       // Note: The final empty string denotes that this is a directory path.
       cacheDir = dartExec.replace(
-          pathSegments: dartExec.pathSegments.sublist(0, i + 1) + ['']);
+          pathSegments: dartExec.pathSegments.sublist(0, i) + ['']);
       break;
     }
   }
   if (cacheDir == null) {
-    throw Exception('Unable to find Flutter SDK cache directory!');
+    throw Exception(
+        'Unable to find Flutter SDK cache directory! Dart executable: `${dartExec.toFilePath()}`');
   }
   // We should now have a path of `/path/to/flutter/bin/cache/`.
 
