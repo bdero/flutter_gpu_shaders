@@ -14,3 +14,8 @@
 ## 0.1.3
 
 * Relax native_assets_cli dependency pin.
+
+## 0.1.4
+
+* Pin native_assets_cli to <0.9.0.
+  (https://github.com/bdero/flutter_gpu_shaders/issues/3)
