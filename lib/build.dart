@@ -83,7 +83,7 @@ Future<void> _buildShaderBundleJson({
 /// ```
 Future<void> buildShaderBundleJson(
     {required BuildConfig buildConfig,
-    required BuildOutput buildOutput,
+    required BuildOutputBuilder buildOutput,
     required String manifestFileName}) async {
   String outputFileName = Uri(path: manifestFileName).pathSegments.last;
   if (!outputFileName.endsWith('.shaderbundle.json')) {
