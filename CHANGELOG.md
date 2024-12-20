@@ -1,8 +1,4 @@
-## 0.2.1
-
-* Bump native_assets_cli to 0.10.0.
-
-## 0.2.0
+## 0.1.0
 
 * Add `buildShaderBundleJson` build hook utility.
 * Document usage instructions in the readme.
@@ -28,3 +24,7 @@
 
 * Update to native_assets_cli 0.9.0.
   Breaking: `BuildOutput` is now `BuildOutputBuilder`
+
+## 0.2.1
+
+* Bump native_assets_cli to 0.10.0.
