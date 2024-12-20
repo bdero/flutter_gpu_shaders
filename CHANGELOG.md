@@ -24,3 +24,7 @@
 
 * Update to native_assets_cli 0.9.0.
   Breaking: `BuildOutput` is now `BuildOutputBuilder`
+
+## 0.2.1
+
+* Bump native_assets_cli to 0.10.0.
