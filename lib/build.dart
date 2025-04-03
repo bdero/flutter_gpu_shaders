@@ -3,9 +3,9 @@ library flutter_gpu_shaders;
 import 'dart:convert' as convert;
 import 'dart:io';
 
-import 'package:native_assets_cli/native_assets_cli.dart';
-
 import 'package:flutter_gpu_shaders/environment.dart';
+import 'package:native_assets_cli/code_assets.dart';
+import 'package:native_assets_cli/native_assets_cli.dart';
 
 /// Loads a shader bundle manifest file and builds a shader bundle.
 Future<void> _buildShaderBundleJson({
@@ -82,7 +82,7 @@ Future<void> _buildShaderBundleJson({
 /// }
 /// ```
 Future<void> buildShaderBundleJson(
-    {required BuildConfig buildConfig,
+    {required BuildInput buildInput,
     required BuildOutputBuilder buildOutput,
     required String manifestFileName}) async {
   String outputFileName = Uri(path: manifestFileName).pathSegments.last;
@@ -100,10 +100,10 @@ Future<void> buildShaderBundleJson(
 
   // TODO(bdero): Register DataAssets instead of outputting to the project directory once it's possible to do so.
   //final outDir = config.outputDirectory;
-  final outDir = Directory.fromUri(
-      buildConfig.packageRoot.resolve('build/shaderbundles/'));
+  final outDir =
+      Directory.fromUri(buildInput.packageRoot.resolve('build/shaderbundles/'));
   await outDir.create(recursive: true);
-  final packageRoot = buildConfig.packageRoot;
+  final packageRoot = buildInput.packageRoot;
 
   final inFile = packageRoot.resolve(manifestFileName);
   final outFile = outDir.uri.resolve(outputFileName);
