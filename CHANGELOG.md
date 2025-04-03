@@ -28,3 +28,7 @@
 ## 0.2.1
 
 * Bump native_assets_cli to 0.10.0.
+
+## 0.2.2
+
+* Bump native_assets_cli to 0.13.0.
