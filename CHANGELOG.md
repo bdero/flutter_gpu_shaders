@@ -28,3 +28,9 @@
 ## 0.2.1
 
 * Bump native_assets_cli to 0.10.0.
+
+## 0.3.0
+
+* Update to native_assets_cli to 0.13.0.
+  (https://github.com/bdero/flutter_gpu_shaders/issues/6)
+  Breaking: `BuildConfig` is now `BuildInput`
