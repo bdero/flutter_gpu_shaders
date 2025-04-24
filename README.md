@@ -32,7 +32,7 @@ Use native asset build hooks to import Flutter GPU shader bundle assets.
     void main(List<String> args) async {
       await build(args, (config, output) async {
         await buildShaderBundleJson(
-            buildConfig: config,
+            buildInput: config,
             buildOutput: output,
             manifestFileName: 'my_cool_bundle.shaderbundle.json');
       });
