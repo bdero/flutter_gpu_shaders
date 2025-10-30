@@ -3,10 +3,9 @@ library flutter_gpu_shaders;
 import 'dart:convert' as convert;
 import 'dart:io';
 
-import 'package:native_assets_cli/code_assets_testing.dart';
-import 'package:native_assets_cli/native_assets_cli.dart';
 
 import 'package:flutter_gpu_shaders/environment.dart';
+import 'package:hooks/hooks.dart';
 
 /// Loads a shader bundle manifest file and builds a shader bundle.
 Future<void> _buildShaderBundleJson({

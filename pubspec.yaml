@@ -12,7 +12,8 @@ dependencies:
     sdk: flutter
   logging: ^1.2.0
   # https://github.com/bdero/flutter_gpu_shaders/issues/3
-  native_assets_cli: '>=0.13.0 <0.14.0'
+  hooks: ^0.20.4
+  
 
 dev_dependencies:
   flutter_test:
