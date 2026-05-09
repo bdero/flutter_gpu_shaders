@@ -41,3 +41,11 @@
   hook authors must now `import 'package:hooks/hooks.dart';` instead of
   `package:native_assets_cli/native_assets_cli.dart`.
 * Bump SDK constraint to `^3.7.0` (matches `hooks` 1.0 requirements).
+
+## 0.4.1
+
+* Documentation: update `README.md` and `buildShaderBundleJson`
+  dartdoc to reflect the 0.4.0 migration (drop the obsolete
+  `flutter config --enable-native-assets` step, swap the import,
+  and rename `buildConfig:` → `buildInput:` to match the parameter
+  name introduced in 0.3.0). No code changes.
