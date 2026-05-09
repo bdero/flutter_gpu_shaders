@@ -47,7 +47,7 @@ Future<void> _buildShaderBundleJson({
 
 /// Build a Flutter GPU shader bundle/library from a JSON manifest file.
 ///
-/// The [buildConfig] and [buildOutput] are provided by the build hook system.
+/// The [buildInput] and [buildOutput] are provided by the build hook system.
 ///
 /// The [manifestFileName] is the path to the JSON manifest file, which is
 /// relative to the package root where the build hook resides.
@@ -62,10 +62,13 @@ Future<void> _buildShaderBundleJson({
 ///
 /// hook/build.dart
 /// ```dart
+/// import 'package:hooks/hooks.dart';
+/// import 'package:flutter_gpu_shaders/build.dart';
+///
 /// void main(List<String> args) async {
 ///   await build(args, (config, output) async {
 ///     await buildShaderBundleJson(
-///         buildConfig: config,
+///         buildInput: config,
 ///         buildOutput: output,
 ///         manifestFileName: 'my_cool_bundle.shaderbundle.json');
 ///   });
