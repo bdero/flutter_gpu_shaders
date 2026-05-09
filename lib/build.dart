@@ -3,8 +3,7 @@ library flutter_gpu_shaders;
 import 'dart:convert' as convert;
 import 'dart:io';
 
-import 'package:native_assets_cli/code_assets_testing.dart';
-import 'package:native_assets_cli/native_assets_cli.dart';
+import 'package:hooks/hooks.dart';
 
 import 'package:flutter_gpu_shaders/environment.dart';
 

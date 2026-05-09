@@ -34,3 +34,10 @@
 * Update to native_assets_cli to 0.13.0.
   (https://github.com/bdero/flutter_gpu_shaders/issues/6)
   Breaking: `BuildConfig` is now `BuildInput`
+
+## 0.4.0
+
+* Migrate from `native_assets_cli` (discontinued) to `hooks` 1.0. Build
+  hook authors must now `import 'package:hooks/hooks.dart';` instead of
+  `package:native_assets_cli/native_assets_cli.dart`.
+* Bump SDK constraint to `^3.7.0` (matches `hooks` 1.0 requirements).
