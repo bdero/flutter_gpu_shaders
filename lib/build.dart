@@ -101,8 +101,13 @@ Future<void> buildShaderBundleJson(
     outputFileName = outputFileName.substring(0, outputFileName.length - 5);
   }
 
-  // TODO(bdero): Register DataAssets instead of outputting to the project directory once it's possible to do so.
-  //final outDir = config.outputDirectory;
+  // TODO(bdero): Migrate to writing to `buildInput.outputDirectory` and
+  // registering the produced bundle as a DataAsset via
+  // `output.assets.data.add(DataAsset(...))`. Tracked at
+  // https://github.com/bdero/flutter_scene/issues/106. Blocked on the
+  // `dartDataAssets` feature flipping to `enabledByDefault: true` in
+  // flutter_tools (currently `available: true` on master, so consumers
+  // would need a `flutter config --enable-dart-data-assets` step).
   final outDir = Directory.fromUri(
       buildInput.packageRoot.resolve('build/shaderbundles/'));
   await outDir.create(recursive: true);
