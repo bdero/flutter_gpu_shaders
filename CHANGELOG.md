@@ -42,6 +42,17 @@
   `package:native_assets_cli/native_assets_cli.dart`.
 * Bump SDK constraint to `^3.7.0` (matches `hooks` 1.0 requirements).
 
+## 0.4.2
+
+* `findImpellerC` now also honors a runtime `IMPELLERC` environment
+  variable in addition to the compile-time define. flutter_tools
+  populates this for build hook subprocesses
+  (https://github.com/flutter/flutter/pull/186300), including the
+  `--local-engine` case where the locally built `impellerc` should be
+  used in preference to the SDK cache. Compile-time define takes
+  precedence; runtime env var is checked next; otherwise the existing
+  SDK cache lookup runs.
+
 ## 0.4.1
 
 * Documentation: update `README.md` and `buildShaderBundleJson`

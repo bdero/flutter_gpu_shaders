@@ -52,11 +52,29 @@ Uri findEngineArtifactsDir({String? dartPath}) {
 /// directory.
 Future<Uri> findImpellerC() async {
   /////////////////////////////////////////////////////////////////////////////
-  /// 1. If the `IMPELLERC` environment variable is set, use it.
+  /// 1. If the `IMPELLERC` define is set at compile time, use it.
   ///
 
-  const impellercEnvVar = String.fromEnvironment('IMPELLERC', defaultValue: '');
-  if (impellercEnvVar != '') {
+  const impellercDefine = String.fromEnvironment('IMPELLERC', defaultValue: '');
+  if (impellercDefine != '') {
+    logger.info('IMPELLERC compile-time define: `$impellercDefine`');
+    if (!await File(impellercDefine).exists()) {
+      throw Exception(
+          'IMPELLERC compile-time define is set, but it doesn\'t point to a valid file!');
+    }
+    return Uri.file(impellercDefine);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  /// 2. If the `IMPELLERC` environment variable is set on the running
+  ///    process, use it. flutter_tools populates this for build hook
+  ///    subprocesses, including the `--local-engine` override case where
+  ///    the locally built `impellerc` should be preferred over the SDK
+  ///    cache. See https://github.com/flutter/flutter/pull/186300.
+  ///
+
+  final impellercEnvVar = Platform.environment['IMPELLERC'];
+  if (impellercEnvVar != null && impellercEnvVar.isNotEmpty) {
     logger.info('IMPELLERC environment variable: `$impellercEnvVar`');
     if (!await File(impellercEnvVar).exists()) {
       throw Exception(
