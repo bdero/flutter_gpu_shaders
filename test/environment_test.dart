@@ -11,8 +11,11 @@ void main() {
     ];
     for (String path in pathVariations) {
       Uri result = findEngineArtifactsDir(dartPath: path);
-      expect(result.pathSegments.sublist(result.pathSegments.length - 3),
-          ['artifacts', 'engine', '']);
+      expect(result.pathSegments.sublist(result.pathSegments.length - 3), [
+        'artifacts',
+        'engine',
+        '',
+      ]);
     }
   });
 

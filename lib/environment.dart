@@ -30,20 +30,24 @@ Uri findEngineArtifactsDir({String? dartPath}) {
         dartExec.pathSegments[i] == 'artifacts') {
       // Note: The final empty string denotes that this is a directory path.
       cacheDir = dartExec.replace(
-          pathSegments: dartExec.pathSegments.sublist(0, i) + ['']);
+        pathSegments: dartExec.pathSegments.sublist(0, i) + [''],
+      );
       break;
     }
   }
   if (cacheDir == null) {
     throw Exception(
-        'Unable to find Flutter SDK cache directory! Dart executable: `${dartExec.toFilePath()}`');
+      'Unable to find Flutter SDK cache directory! Dart executable: `${dartExec.toFilePath()}`',
+    );
   }
   // We should now have a path of `/path/to/flutter/bin/cache/`.
 
-  final engineArtifactsDir = cacheDir
-      .resolve('./artifacts/engine/'); // Note: The final slash is important.
+  final engineArtifactsDir = cacheDir.resolve(
+    './artifacts/engine/',
+  ); // Note: The final slash is important.
   logger.info(
-      'Flutter SDK cache directory: `${engineArtifactsDir.toFilePath()}`');
+    'Flutter SDK cache directory: `${engineArtifactsDir.toFilePath()}`',
+  );
 
   return engineArtifactsDir;
 }
@@ -60,7 +64,8 @@ Future<Uri> findImpellerC() async {
     logger.info('IMPELLERC compile-time define: `$impellercDefine`');
     if (!await File(impellercDefine).exists()) {
       throw Exception(
-          'IMPELLERC compile-time define is set, but it doesn\'t point to a valid file!');
+        'IMPELLERC compile-time define is set, but it doesn\'t point to a valid file!',
+      );
     }
     return Uri.file(impellercDefine);
   }
@@ -78,7 +83,8 @@ Future<Uri> findImpellerC() async {
     logger.info('IMPELLERC environment variable: `$impellercEnvVar`');
     if (!await File(impellercEnvVar).exists()) {
       throw Exception(
-          'IMPELLERC environment variable is set, but it doesn\'t point to a valid file!');
+        'IMPELLERC environment variable is set, but it doesn\'t point to a valid file!',
+      );
     }
     return Uri.file(impellercEnvVar);
   }
@@ -105,7 +111,8 @@ Future<Uri> findImpellerC() async {
   }
   if (found == null) {
     throw Exception(
-        'Unable to find impellerc! Tried the following locations: $tried');
+      'Unable to find impellerc! Tried the following locations: $tried',
+    );
   }
 
   return found;
