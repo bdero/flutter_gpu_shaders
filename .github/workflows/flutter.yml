@@ -1,0 +1,40 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: master
+      - run: dart --version
+      - run: flutter --version
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Lint analysis
+        run: dart analyze
+      - name: Dart format
+        run: dart format --output none --set-exit-if-changed $(find . -name '**.dart' -not -path '*/build/*')
+
+  test:
+    name: Test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: master
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Run tests
+        run: flutter test

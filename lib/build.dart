@@ -37,11 +37,15 @@ Future<void> _buildShaderBundleJson({
     '--include=${shaderLibPath.toFilePath()}',
   ];
 
-  final impellerc = Process.runSync(impellercExec.toFilePath(), impellercArgs,
-      workingDirectory: packageRoot.toFilePath());
+  final impellerc = Process.runSync(
+    impellercExec.toFilePath(),
+    impellercArgs,
+    workingDirectory: packageRoot.toFilePath(),
+  );
   if (impellerc.exitCode != 0) {
     throw Exception(
-        'Failed to build shader bundle: ${impellerc.stderr}\n${impellerc.stdout}');
+      'Failed to build shader bundle: ${impellerc.stderr}\n${impellerc.stdout}',
+    );
   }
 }
 
@@ -84,18 +88,21 @@ Future<void> _buildShaderBundleJson({
 ///     }
 /// }
 /// ```
-Future<void> buildShaderBundleJson(
-    {required BuildInput buildInput,
-    required BuildOutputBuilder buildOutput,
-    required String manifestFileName}) async {
+Future<void> buildShaderBundleJson({
+  required BuildInput buildInput,
+  required BuildOutputBuilder buildOutput,
+  required String manifestFileName,
+}) async {
   String outputFileName = Uri(path: manifestFileName).pathSegments.last;
   if (!outputFileName.endsWith('.shaderbundle.json')) {
     throw Exception(
-        'Shader bundle manifest file names must end with ".shaderbundle.json".');
+      'Shader bundle manifest file names must end with ".shaderbundle.json".',
+    );
   }
   if (outputFileName.length <= '.shaderbundle.json'.length) {
     throw Exception(
-        'Invalid shader bundle manifest file name: $outputFileName');
+      'Invalid shader bundle manifest file name: $outputFileName',
+    );
   }
   if (outputFileName.endsWith('.json')) {
     outputFileName = outputFileName.substring(0, outputFileName.length - 5);
@@ -109,7 +116,8 @@ Future<void> buildShaderBundleJson(
   // flutter_tools (currently `available: true` on master, so consumers
   // would need a `flutter config --enable-dart-data-assets` step).
   final outDir = Directory.fromUri(
-      buildInput.packageRoot.resolve('build/shaderbundles/'));
+    buildInput.packageRoot.resolve('build/shaderbundles/'),
+  );
   await outDir.create(recursive: true);
   final packageRoot = buildInput.packageRoot;
 
@@ -117,7 +125,8 @@ Future<void> buildShaderBundleJson(
   final outFile = outDir.uri.resolve(outputFileName);
 
   await _buildShaderBundleJson(
-      packageRoot: packageRoot,
-      inputManifestFilePath: inFile,
-      outputBundleFilePath: outFile);
+    packageRoot: packageRoot,
+    inputManifestFilePath: inFile,
+    outputBundleFilePath: outFile,
+  );
 }
