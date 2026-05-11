@@ -12,6 +12,7 @@ Future<void> _buildShaderBundleJson({
   required Uri packageRoot,
   required Uri inputManifestFilePath,
   required Uri outputBundleFilePath,
+  required BuildOutputBuilder buildOutput,
 }) async {
   /////////////////////////////////////////////////////////////////////////////
   /// 1. Parse the manifest file.
@@ -22,10 +23,26 @@ Future<void> _buildShaderBundleJson({
   final decodedManifest = convert.json.decode(manifest);
   String reconstitutedManifest = convert.json.encode(decodedManifest);
 
-  //throw Exception(reconstitutedManifest);
+  /////////////////////////////////////////////////////////////////////////////
+  /// 2. Declare build-system dependencies.
+  ///
+  /// The build hook needs to rerun when any input that influences the
+  /// produced shader bundle changes. We track the manifest itself and
+  /// every shader source file it references. The build hook framework
+  /// reruns this hook the next time any listed dependency's mtime
+  /// changes.
+  ///
+  /// Transitive `#include`s aren't tracked yet. `impellerc`'s
+  /// `--depfile` switch (which would let us capture them) is a no-op
+  /// in `--shader-bundle` mode today; that's filed as an upstream
+  /// follow-up.
+
+  buildOutput.dependencies.addAll(
+    collectShaderBundleDependencies(inputManifestFilePath, decodedManifest),
+  );
 
   /////////////////////////////////////////////////////////////////////////////
-  /// 2. Build the shader bundle.
+  /// 3. Build the shader bundle.
   ///
 
   final impellercExec = await findImpellerC();
@@ -49,6 +66,34 @@ Future<void> _buildShaderBundleJson({
   }
 }
 
+/// Collects the build-system dependencies declared by a shader bundle
+/// manifest.
+///
+/// Returns the manifest URI itself plus the resolved URI of every
+/// shader source file referenced by a top-level entry's `file` key.
+/// Paths in the manifest are interpreted relative to the manifest's
+/// containing directory.
+///
+/// Exposed so users authoring custom build hooks (and tests) can
+/// inspect the same dependency set [buildShaderBundleJson] declares.
+List<Uri> collectShaderBundleDependencies(
+  Uri manifestUri,
+  Object decodedManifest,
+) {
+  final manifestDir = manifestUri.resolve('./');
+  final result = <Uri>[manifestUri];
+  if (decodedManifest is! Map) {
+    return result;
+  }
+  for (final value in decodedManifest.values) {
+    if (value is! Map) continue;
+    final file = value['file'];
+    if (file is! String) continue;
+    result.add(manifestDir.resolve(file));
+  }
+  return result;
+}
+
 /// Build a Flutter GPU shader bundle/library from a JSON manifest file.
 ///
 /// The [buildInput] and [buildOutput] are provided by the build hook system.
@@ -61,6 +106,10 @@ Future<void> _buildShaderBundleJson({
 /// The built shader bundle will be written to
 /// `build/shaderbundles/[name].shaderbundle`,
 /// relative to the package root where the build hook resides.
+///
+/// The hook declares the manifest and every shader source file it
+/// references as build-system dependencies, so the bundle is rebuilt
+/// when any input changes.
 ///
 /// Example usage:
 ///
@@ -128,5 +177,6 @@ Future<void> buildShaderBundleJson({
     packageRoot: packageRoot,
     inputManifestFilePath: inFile,
     outputBundleFilePath: outFile,
+    buildOutput: buildOutput,
   );
 }

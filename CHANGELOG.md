@@ -1,3 +1,16 @@
+## 0.4.3
+
+* `buildShaderBundleJson` now declares the manifest and every shader
+  source file it references as build-hook dependencies. The build
+  system reruns the hook (and `impellerc`) whenever any of those
+  inputs change, so editing a `.frag` no longer requires a manual
+  clean. Transitive `#include`s aren't tracked yet because
+  `impellerc`'s `--depfile` switch is a no-op when `--shader-bundle`
+  is in use; this is a known limitation pending an upstream fix.
+* New `collectShaderBundleDependencies(manifestUri, decodedManifest)`
+  helper returns the dependency set for inspection from custom build
+  hooks and tests.
+
 ## 0.1.0
 
 * Add `buildShaderBundleJson` build hook utility.
