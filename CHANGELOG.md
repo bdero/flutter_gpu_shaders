@@ -1,3 +1,17 @@
+## 0.4.4
+
+* `buildShaderBundleJson` accepts an `includeDirectories` parameter:
+  extra directories appended to `impellerc`'s `#include` search path,
+  after the manifest directory and the bundled `shader_lib`. This lets a
+  build hook compile shaders that `#include` reusable GLSL shipped by
+  another package, by resolving that package's shader directory and
+  passing it through. Files resolved this way are not auto-declared as
+  build dependencies; declare them via the build output if edits to them
+  should retrigger the build.
+* New `shaderBundleImpellercArguments(...)` helper returns the exact
+  `impellerc` argument list, exposed for inspection from custom build
+  hooks and tests.
+
 ## 0.4.3
 
 * `buildShaderBundleJson` now declares the manifest and every shader

@@ -70,4 +70,58 @@ void main() {
       expect(deps, [manifestUri]);
     });
   });
+
+  group('shaderBundleImpellercArguments', () {
+    final out = Uri.parse(
+      'file:///pkg/build/shaderbundles/bundle.shaderbundle',
+    );
+    final manifestDir = Uri.parse('file:///pkg/shaders/');
+    final shaderLib = Uri.parse('file:///sdk/shader_lib/');
+
+    test('emits sl, shader-bundle, and the two default includes', () {
+      final args = shaderBundleImpellercArguments(
+        outputBundleFilePath: out,
+        manifestJson: '{}',
+        manifestDirectory: manifestDir,
+        shaderLibDirectory: shaderLib,
+      );
+      expect(args, [
+        '--sl=${out.toFilePath()}',
+        '--shader-bundle={}',
+        '--include=${manifestDir.toFilePath()}',
+        '--include=${shaderLib.toFilePath()}',
+      ]);
+    });
+
+    test('appends an --include for each extra directory, in order', () {
+      final depA = Uri.parse('file:///dep_a/shaders/');
+      final depB = Uri.parse('file:///dep_b/glsl/');
+      final args = shaderBundleImpellercArguments(
+        outputBundleFilePath: out,
+        manifestJson: '{}',
+        manifestDirectory: manifestDir,
+        shaderLibDirectory: shaderLib,
+        includeDirectories: [depA, depB],
+      );
+      final includes = args.where((a) => a.startsWith('--include=')).toList();
+      expect(includes, [
+        '--include=${manifestDir.toFilePath()}',
+        '--include=${shaderLib.toFilePath()}',
+        '--include=${depA.toFilePath()}',
+        '--include=${depB.toFilePath()}',
+      ]);
+    });
+
+    test('an empty include list matches the default behaviour', () {
+      List<String> build({List<Uri>? includeDirectories}) =>
+          shaderBundleImpellercArguments(
+            outputBundleFilePath: out,
+            manifestJson: '{}',
+            manifestDirectory: manifestDir,
+            shaderLibDirectory: shaderLib,
+            includeDirectories: includeDirectories ?? const [],
+          );
+      expect(build(includeDirectories: const []), build());
+    });
+  });
 }
