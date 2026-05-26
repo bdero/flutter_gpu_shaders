@@ -13,6 +13,7 @@ Future<void> _buildShaderBundleJson({
   required Uri inputManifestFilePath,
   required Uri outputBundleFilePath,
   required BuildOutputBuilder buildOutput,
+  required List<Uri> includeDirectories,
 }) async {
   /////////////////////////////////////////////////////////////////////////////
   /// 1. Parse the manifest file.
@@ -47,12 +48,13 @@ Future<void> _buildShaderBundleJson({
 
   final impellercExec = await findImpellerC();
   final shaderLibPath = impellercExec.resolve('./shader_lib');
-  final impellercArgs = [
-    '--sl=${outputBundleFilePath.toFilePath()}',
-    '--shader-bundle=$reconstitutedManifest',
-    '--include=${inputManifestFilePath.resolve('./').toFilePath()}',
-    '--include=${shaderLibPath.toFilePath()}',
-  ];
+  final impellercArgs = shaderBundleImpellercArguments(
+    outputBundleFilePath: outputBundleFilePath,
+    manifestJson: reconstitutedManifest,
+    manifestDirectory: inputManifestFilePath.resolve('./'),
+    shaderLibDirectory: shaderLibPath,
+    includeDirectories: includeDirectories,
+  );
 
   final impellerc = Process.runSync(
     impellercExec.toFilePath(),
@@ -94,6 +96,33 @@ List<Uri> collectShaderBundleDependencies(
   return result;
 }
 
+/// Builds the `impellerc` argument list for a shader-bundle compile.
+///
+/// The first two `--include` directories are always the manifest's own
+/// directory and `impellerc`'s bundled `shader_lib`. Any [includeDirectories]
+/// are appended after them, so a package that ships reusable GLSL (for example
+/// framework shaders that generated bundles `#include`) can put its shader
+/// directory on the search path.
+///
+/// Exposed so users authoring custom build hooks (and tests) can inspect the
+/// exact arguments [buildShaderBundleJson] passes to `impellerc`.
+List<String> shaderBundleImpellercArguments({
+  required Uri outputBundleFilePath,
+  required String manifestJson,
+  required Uri manifestDirectory,
+  required Uri shaderLibDirectory,
+  List<Uri> includeDirectories = const [],
+}) {
+  return [
+    '--sl=${outputBundleFilePath.toFilePath()}',
+    '--shader-bundle=$manifestJson',
+    '--include=${manifestDirectory.toFilePath()}',
+    '--include=${shaderLibDirectory.toFilePath()}',
+    for (final directory in includeDirectories)
+      '--include=${directory.toFilePath()}',
+  ];
+}
+
 /// Build a Flutter GPU shader bundle/library from a JSON manifest file.
 ///
 /// The [buildInput] and [buildOutput] are provided by the build hook system.
@@ -110,6 +139,14 @@ List<Uri> collectShaderBundleDependencies(
 /// The hook declares the manifest and every shader source file it
 /// references as build-system dependencies, so the bundle is rebuilt
 /// when any input changes.
+///
+/// The optional [includeDirectories] are added to `impellerc`'s `#include`
+/// search path, after the manifest's directory and `impellerc`'s built-in
+/// `shader_lib`. Use this to compile shaders that `#include` reusable GLSL
+/// shipped by another package: resolve that package's shader directory and
+/// pass it here. Files resolved through these directories are not declared as
+/// dependencies automatically; add them via [buildOutput] if edits to them
+/// should retrigger the build.
 ///
 /// Example usage:
 ///
@@ -141,6 +178,7 @@ Future<void> buildShaderBundleJson({
   required BuildInput buildInput,
   required BuildOutputBuilder buildOutput,
   required String manifestFileName,
+  List<Uri> includeDirectories = const [],
 }) async {
   String outputFileName = Uri(path: manifestFileName).pathSegments.last;
   if (!outputFileName.endsWith('.shaderbundle.json')) {
@@ -178,5 +216,6 @@ Future<void> buildShaderBundleJson({
     inputManifestFilePath: inFile,
     outputBundleFilePath: outFile,
     buildOutput: buildOutput,
+    includeDirectories: includeDirectories,
   );
 }
