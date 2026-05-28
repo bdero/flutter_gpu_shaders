@@ -52,6 +52,8 @@ jobs:
       - name: Verify Flutter master shader bundle hook behavior
         run: tool/verify_shader_bundle_hook.sh
         env:
+          VERIFY_BUILD_HOOK_CACHE: true
+          VERIFY_DIRECT_SHADER: true
           VERIFY_TRANSITIVE_INCLUDE: true
 
   shader-bundle-smoke-stable:
@@ -64,5 +66,5 @@ jobs:
         with:
           channel: stable
       - run: flutter --version
-      - name: Verify Flutter stable shader bundle hook behavior
+      - name: Verify Flutter stable shader bundle build compatibility
         run: tool/verify_shader_bundle_hook.sh

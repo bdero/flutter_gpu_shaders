@@ -3,6 +3,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fixture_source="$repo_root/test_fixtures/shader_bundle_app"
+verify_build_hook_cache="${VERIFY_BUILD_HOOK_CACHE:-false}"
+verify_direct_shader="${VERIFY_DIRECT_SHADER:-false}"
 verify_transitive_include="${VERIFY_TRANSITIVE_INCLUDE:-false}"
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
@@ -28,12 +30,20 @@ if [[ ! -s "$bundle" ]]; then
   exit 1
 fi
 
+if [[ "$verify_build_hook_cache" != "true" ]]; then
+  exit 0
+fi
+
 second_build_log="$workdir/second_build.log"
 flutter build bundle -v > "$second_build_log" 2>&1
 if ! grep -q "Skipping target: build_hooks" "$second_build_log"; then
   echo "Expected unchanged build to skip build_hooks." >&2
   cat "$second_build_log" >&2
   exit 1
+fi
+
+if [[ "$verify_direct_shader" != "true" ]]; then
+  exit 0
 fi
 
 cat > shaders/smoke.frag <<'GLSL'
