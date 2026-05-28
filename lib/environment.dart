@@ -1,5 +1,3 @@
-library flutter_gpu_shaders;
-
 import 'dart:io';
 
 import 'package:flutter_gpu_shaders/base.dart';

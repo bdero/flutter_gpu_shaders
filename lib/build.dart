@@ -1,5 +1,3 @@
-library flutter_gpu_shaders;
-
 import 'dart:convert' as convert;
 import 'dart:io';
 
@@ -19,8 +17,9 @@ Future<void> _buildShaderBundleJson({
   /// 1. Parse the manifest file.
   ///
 
-  final manifest =
-      await File(inputManifestFilePath.toFilePath()).readAsString();
+  final manifest = await File(
+    inputManifestFilePath.toFilePath(),
+  ).readAsString();
   final decodedManifest = convert.json.decode(manifest);
   String reconstitutedManifest = convert.json.encode(decodedManifest);
 
