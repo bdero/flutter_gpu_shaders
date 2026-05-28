@@ -39,8 +39,8 @@ jobs:
       - name: Run tests
         run: flutter test
 
-  shader-bundle-smoke:
-    name: Shader bundle smoke
+  shader-bundle-smoke-master:
+    name: Shader bundle smoke (master)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,4 +50,19 @@ jobs:
           channel: master
       - run: flutter --version
       - name: Verify Flutter master shader bundle hook behavior
-        run: tool/verify_flutter_master.sh
+        run: tool/verify_shader_bundle_hook.sh
+        env:
+          VERIFY_TRANSITIVE_INCLUDE: true
+
+  shader-bundle-smoke-stable:
+    name: Shader bundle smoke (stable)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter --version
+      - name: Verify Flutter stable shader bundle hook behavior
+        run: tool/verify_shader_bundle_hook.sh
