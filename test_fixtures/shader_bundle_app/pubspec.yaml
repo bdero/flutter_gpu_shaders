@@ -1,0 +1,16 @@
+name: shader_bundle_app
+description: Fixture app for exercising flutter_gpu_shaders build hooks.
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_gpu_shaders:
+    path: ../..
+  hooks: ^2.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,10 @@
+{
+  "SmokeVertex": {
+    "type": "vertex",
+    "file": "shaders/smoke.vert"
+  },
+  "SmokeFragment": {
+    "type": "fragment",
+    "file": "shaders/smoke.frag"
+  }
+}
