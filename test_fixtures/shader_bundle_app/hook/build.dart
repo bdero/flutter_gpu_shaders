@@ -8,6 +8,7 @@ void main(List<String> args) async {
       buildOutput: output,
       manifestFileName: 'test_bundle.shaderbundle.json',
       includeDirectories: [input.packageRoot.resolve('shaders/')],
+      assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
     );
   });
 }

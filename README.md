@@ -39,18 +39,34 @@ Use native asset build hooks to import Flutter GPU shader bundle assets.
     supports `--depfile` for shader bundles, it also declares transitive
     `#include` dependencies from the generated depfile. Older `impellerc`
     builds continue to use the manifest scan fallback.
-4. In your project's `pubspec.yaml`, add an asset import rule to package the built shader bundles (this will become unnecessary once the build hook system supports `DataAsset` registration in a future release):
+4. In your project's `pubspec.yaml`, add the built shader bundle as an asset:
     ```yaml
     flutter:
       assets:
-        - build/shaderbundles/*.shaderbundle.json
+        - build/shaderbundles/my_cool_bundle.shaderbundle
     ```
-5. You can now import the built shader bundle as a library using `gpu.ShaderLibrary.fromAsset` in your project. For example:
+5. If your Flutter toolchain supports Dart DataAssets, you can opt in to
+   registering the generated bundle with the Flutter asset bundle instead of
+   listing it in `pubspec.yaml`:
+    ```dart
+    await buildShaderBundleJson(
+      buildInput: config,
+      buildOutput: output,
+      manifestFileName: 'my_cool_bundle.shaderbundle.json',
+      assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
+    );
+    ```
+   With DataAssets enabled, the result's `flutterAssetKey` is the key to pass
+   to `gpu.ShaderLibrary.fromAsset`. When DataAssets are unavailable,
+   `dataAssetsIfAvailable` falls back to the legacy file output. Use
+   `ShaderBundleAssetMode.dataAssetsRequired` to fail fast with guidance
+   instead.
+6. You can now import the built shader bundle as a library using `gpu.ShaderLibrary.fromAsset` in your project. For example:
     ```dart
     import 'package:flutter_gpu/gpu.dart' as gpu;
 
     final String _kBaseShaderBundlePath =
-        'packages/my_project/build/shaderbundles/my_cool_bundle.shaderbundle';
+        'build/shaderbundles/my_cool_bundle.shaderbundle';
 
     gpu.ShaderLibrary? _baseShaderLibrary;
     gpu.ShaderLibrary get baseShaderLibrary {

@@ -1,7 +1,10 @@
 import 'dart:convert' as convert;
+import 'dart:io';
 
+import 'package:data_assets/data_assets.dart';
 import 'package:flutter_gpu_shaders/build.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooks/hooks.dart';
 
 void main() {
   group('collectShaderBundleDependencies', () {
@@ -197,4 +200,116 @@ void main() {
       expect(parseImpellerCDepfileDependencies(''), isEmpty);
     });
   });
+
+  group('DataAsset registration', () {
+    test('computes default DataAsset names and Flutter asset keys', () {
+      expect(
+        shaderBundleDataAssetName('materials.shaderbundle'),
+        'flutter_gpu_shaders/shaderbundles/materials.shaderbundle',
+      );
+      expect(
+        flutterDataAssetKey(
+          package: 'example_app',
+          name: 'flutter_gpu_shaders/shaderbundles/materials.shaderbundle',
+        ),
+        'packages/example_app/'
+        'flutter_gpu_shaders/shaderbundles/materials.shaderbundle',
+      );
+    });
+
+    test('falls back when DataAssets are unavailable', () {
+      final input = _buildInput(buildDataAssets: false);
+      final output = BuildOutputBuilder();
+      final result = registerShaderBundleDataAsset(
+        buildInput: input,
+        buildOutput: output,
+        outputBundleFile: Uri.parse(
+          'file:///pkg/build/shaderbundles/materials.shaderbundle',
+        ),
+        legacyAssetKey: 'build/shaderbundles/materials.shaderbundle',
+        assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
+      );
+
+      expect(result, isNull);
+      expect(output.build().assets.encodedAssets, isEmpty);
+    });
+
+    test('throws when DataAssets are required but unavailable', () {
+      final input = _buildInput(buildDataAssets: false);
+      final output = BuildOutputBuilder();
+
+      expect(
+        () => registerShaderBundleDataAsset(
+          buildInput: input,
+          buildOutput: output,
+          outputBundleFile: Uri.parse(
+            'file:///pkg/build/shaderbundles/materials.shaderbundle',
+          ),
+          legacyAssetKey: 'build/shaderbundles/materials.shaderbundle',
+          assetMode: ShaderBundleAssetMode.dataAssetsRequired,
+        ),
+        throwsA(isA<UnsupportedError>()),
+      );
+      expect(output.build().assets.encodedAssets, isEmpty);
+    });
+
+    test('registers a DataAsset when enabled', () {
+      final input = _buildInput(buildDataAssets: true);
+      final output = BuildOutputBuilder();
+      final outputFile = Uri.parse(
+        'file:///pkg/build/shaderbundles/materials.shaderbundle',
+      );
+
+      final result = registerShaderBundleDataAsset(
+        buildInput: input,
+        buildOutput: output,
+        outputBundleFile: outputFile,
+        legacyAssetKey: 'build/shaderbundles/materials.shaderbundle',
+        assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
+        dataAssetName: 'custom/materials.shaderbundle',
+      );
+
+      expect(result, isNotNull);
+      expect(result!.outputFile, outputFile);
+      expect(
+        result.legacyAssetKey,
+        'build/shaderbundles/materials.shaderbundle',
+      );
+      expect(result.dataAssetName, 'custom/materials.shaderbundle');
+      expect(
+        result.dataAssetId,
+        'package:example_app/custom/materials.shaderbundle',
+      );
+      expect(
+        result.flutterAssetKey,
+        'packages/example_app/custom/materials.shaderbundle',
+      );
+
+      final assets = output.build().assets.encodedAssets;
+      expect(assets, hasLength(1));
+      final asset = assets.single.asDataAsset;
+      expect(asset.file, outputFile);
+      expect(asset.name, 'custom/materials.shaderbundle');
+      expect(asset.package, 'example_app');
+    });
+  });
+}
+
+BuildInput _buildInput({required bool buildDataAssets}) {
+  final temp = Directory.systemTemp.createTempSync(
+    'flutter_gpu_shaders_build_input',
+  );
+  final builder = BuildInputBuilder()
+    ..setupShared(
+      packageRoot: temp.uri,
+      packageName: 'example_app',
+      outputDirectoryShared: temp.uri.resolve('.dart_tool/hook/'),
+      outputFile: temp.uri.resolve('.dart_tool/hook/output.json'),
+    )
+    ..setupBuildInput();
+  builder.config.setupBuild(linkingEnabled: false);
+  if (buildDataAssets) {
+    DataAssetsExtension().setupBuildInput(builder);
+  }
+  return builder.build();
 }

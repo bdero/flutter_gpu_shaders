@@ -8,6 +8,7 @@ environment:
   flutter: '>=1.17.0'
 
 dependencies:
+  data_assets: ^0.20.0
   flutter:
     sdk: flutter
   hooks: ^2.0.0

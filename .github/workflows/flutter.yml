@@ -53,6 +53,7 @@ jobs:
         run: tool/verify_shader_bundle_hook.sh
         env:
           VERIFY_BUILD_HOOK_CACHE: true
+          VERIFY_DATA_ASSETS: true
           VERIFY_DIRECT_SHADER: true
           VERIFY_TRANSITIVE_INCLUDE: true
 
