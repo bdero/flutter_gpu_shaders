@@ -93,6 +93,20 @@ void main() {
       ]);
     });
 
+    test('emits depfile argument when a depfile path is provided', () {
+      final depfile = Uri.parse(
+        'file:///pkg/build/shaderbundles/bundle.shaderbundle.d',
+      );
+      final args = shaderBundleImpellercArguments(
+        outputBundleFilePath: out,
+        manifestJson: '{}',
+        manifestDirectory: manifestDir,
+        shaderLibDirectory: shaderLib,
+        depfilePath: depfile,
+      );
+      expect(args, contains('--depfile=${depfile.toFilePath()}'));
+    });
+
     test('appends an --include for each extra directory, in order', () {
       final depA = Uri.parse('file:///dep_a/shaders/');
       final depB = Uri.parse('file:///dep_b/glsl/');
@@ -122,6 +136,65 @@ void main() {
             includeDirectories: includeDirectories ?? const [],
           );
       expect(build(includeDirectories: const []), build());
+    });
+  });
+
+  group('impellerCHelpSupportsDepfile', () {
+    test('returns true when help advertises the depfile flag', () {
+      expect(
+        impellerCHelpSupportsDepfile(
+          '[optional]          --depfile=<depfile_path>',
+        ),
+        isTrue,
+      );
+    });
+
+    test('returns false when help omits the depfile flag', () {
+      expect(
+        impellerCHelpSupportsDepfile(
+          '[optional,multiple] --include=<include_directory>',
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('parseImpellerCDepfileDependencies', () {
+    test('parses dependency paths from a single-line depfile', () {
+      final deps = parseImpellerCDepfileDependencies(
+        '/pkg/build/shaderbundles/bundle.shaderbundle: '
+        '/pkg/shaders/main.frag /pkg/shaders/include/common.glsl\n',
+      );
+      expect(deps, [
+        Uri.parse('file:///pkg/shaders/main.frag'),
+        Uri.parse('file:///pkg/shaders/include/common.glsl'),
+      ]);
+    });
+
+    test('resolves relative dependency paths against a base URI', () {
+      final deps = parseImpellerCDepfileDependencies(
+        'build/shaderbundles/bundle.shaderbundle: '
+        'shaders/main.frag shaders/include/common.glsl',
+        relativeTo: Uri.parse('file:///pkg/'),
+      );
+      expect(deps, [
+        Uri.parse('file:///pkg/shaders/main.frag'),
+        Uri.parse('file:///pkg/shaders/include/common.glsl'),
+      ]);
+    });
+
+    test('handles a drive-letter colon in the target path', () {
+      final deps = parseImpellerCDepfileDependencies(
+        r'C:\pkg\build\shaderbundles\bundle.shaderbundle: '
+        'shaders/main.frag',
+        relativeTo: Uri.parse('file:///pkg/'),
+      );
+      expect(deps, [Uri.parse('file:///pkg/shaders/main.frag')]);
+    });
+
+    test('returns no dependencies when the depfile is missing deps', () {
+      expect(parseImpellerCDepfileDependencies('target:'), isEmpty);
+      expect(parseImpellerCDepfileDependencies(''), isEmpty);
     });
   });
 }

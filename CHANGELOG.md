@@ -1,5 +1,10 @@
 ## 0.4.4
 
+* `buildShaderBundleJson` now consumes `impellerc` depfiles when the resolved
+  compiler advertises `--depfile` support. This lets newer Flutter SDKs track
+  transitive shader `#include` dependencies while preserving the existing
+  manifest dependency scan for older `impellerc` builds that do not support the
+  flag or do not emit a depfile in `--shader-bundle` mode.
 * `buildShaderBundleJson` accepts an `includeDirectories` parameter:
   extra directories appended to `impellerc`'s `#include` search path,
   after the manifest directory and the bundled `shader_lib`. This lets a
