@@ -34,6 +34,11 @@ Use native asset build hooks to import Flutter GPU shader bundle assets.
       });
     }
     ```
+    `buildShaderBundleJson` always declares the manifest and directly listed
+    shader files as build dependencies. With Flutter SDKs whose `impellerc`
+    supports `--depfile` for shader bundles, it also declares transitive
+    `#include` dependencies from the generated depfile. Older `impellerc`
+    builds continue to use the manifest scan fallback.
 4. In your project's `pubspec.yaml`, add an asset import rule to package the built shader bundles (this will become unnecessary once the build hook system supports `DataAsset` registration in a future release):
     ```yaml
     flutter:

@@ -28,14 +28,11 @@ Future<void> _buildShaderBundleJson({
   ///
   /// The build hook needs to rerun when any input that influences the
   /// produced shader bundle changes. We track the manifest itself and
-  /// every shader source file it references. The build hook framework
-  /// reruns this hook the next time any listed dependency's mtime
-  /// changes.
-  ///
-  /// Transitive `#include`s aren't tracked yet. `impellerc`'s
-  /// `--depfile` switch (which would let us capture them) is a no-op
-  /// in `--shader-bundle` mode today; that's filed as an upstream
-  /// follow-up.
+  /// every shader source file it references before invoking `impellerc`,
+  /// so older compilers still get the same dependency tracking as previous
+  /// package versions. Newer compilers also emit a depfile that captures
+  /// transitive `#include`s; those dependencies are merged after a
+  /// successful compile.
 
   buildOutput.dependencies.addAll(
     collectShaderBundleDependencies(inputManifestFilePath, decodedManifest),
@@ -47,12 +44,21 @@ Future<void> _buildShaderBundleJson({
 
   final impellercExec = await findImpellerC();
   final shaderLibPath = impellercExec.resolve('./shader_lib');
+  final depfilePath = Uri.file('${outputBundleFilePath.toFilePath()}.d');
+  final depfile = File.fromUri(depfilePath);
+  final supportsDepfile = impellerCHelpSupportsDepfile(
+    _impellerCHelpText(impellercExec),
+  );
+  if (supportsDepfile && await depfile.exists()) {
+    await depfile.delete();
+  }
   final impellercArgs = shaderBundleImpellercArguments(
     outputBundleFilePath: outputBundleFilePath,
     manifestJson: reconstitutedManifest,
     manifestDirectory: inputManifestFilePath.resolve('./'),
     shaderLibDirectory: shaderLibPath,
     includeDirectories: includeDirectories,
+    depfilePath: supportsDepfile ? depfilePath : null,
   );
 
   final impellerc = Process.runSync(
@@ -65,6 +71,25 @@ Future<void> _buildShaderBundleJson({
       'Failed to build shader bundle: ${impellerc.stderr}\n${impellerc.stdout}',
     );
   }
+
+  if (supportsDepfile && await depfile.exists()) {
+    final depfileContents = await depfile.readAsString();
+    buildOutput.dependencies.addAll(
+      parseImpellerCDepfileDependencies(
+        depfileContents,
+        relativeTo: packageRoot,
+      ),
+    );
+    await depfile.delete();
+  }
+}
+
+String _impellerCHelpText(Uri impellercExec) {
+  final result = Process.runSync(impellercExec.toFilePath(), ['--help']);
+  if (result.exitCode != 0) {
+    return '';
+  }
+  return '${result.stdout}\n${result.stderr}';
 }
 
 /// Collects the build-system dependencies declared by a shader bundle
@@ -95,6 +120,50 @@ List<Uri> collectShaderBundleDependencies(
   return result;
 }
 
+/// Returns whether the `impellerc --help` text advertises `--depfile`.
+///
+/// Older `impellerc` builds either omit the flag entirely or accept it without
+/// producing a depfile in `--shader-bundle` mode. Build hooks use this helper
+/// to avoid passing an unsupported flag while preserving the existing manifest
+/// dependency fallback.
+bool impellerCHelpSupportsDepfile(String helpText) {
+  return helpText.contains('--depfile=');
+}
+
+/// Parses dependency paths from an `impellerc` depfile.
+///
+/// `impellerc` emits a Ninja-style single-line depfile:
+/// `<target>: <dep1> <dep2> ...`. The target is ignored. Dependency paths are
+/// converted to file URIs; relative paths are resolved against [relativeTo]
+/// when it is provided.
+List<Uri> parseImpellerCDepfileDependencies(
+  String depfileContents, {
+  Uri? relativeTo,
+}) {
+  final separator = RegExp(r':(?:\s|$)').firstMatch(depfileContents);
+  if (separator == null) {
+    return const [];
+  }
+  final dependencies = depfileContents.substring(separator.end).trim();
+  if (dependencies.isEmpty) {
+    return const [];
+  }
+  return dependencies
+      .split(RegExp(r'\s+'))
+      .where((dependency) => dependency.isNotEmpty)
+      .map((dependency) {
+        if (_isAbsoluteFilePath(dependency)) {
+          return Uri.file(dependency);
+        }
+        return relativeTo?.resolve(dependency) ?? Uri.file(dependency);
+      })
+      .toList();
+}
+
+bool _isAbsoluteFilePath(String path) {
+  return path.startsWith('/') || RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(path);
+}
+
 /// Builds the `impellerc` argument list for a shader-bundle compile.
 ///
 /// The first two `--include` directories are always the manifest's own
@@ -111,10 +180,12 @@ List<String> shaderBundleImpellercArguments({
   required Uri manifestDirectory,
   required Uri shaderLibDirectory,
   List<Uri> includeDirectories = const [],
+  Uri? depfilePath,
 }) {
   return [
     '--sl=${outputBundleFilePath.toFilePath()}',
     '--shader-bundle=$manifestJson',
+    if (depfilePath != null) '--depfile=${depfilePath.toFilePath()}',
     '--include=${manifestDirectory.toFilePath()}',
     '--include=${shaderLibDirectory.toFilePath()}',
     for (final directory in includeDirectories)
@@ -137,7 +208,10 @@ List<String> shaderBundleImpellercArguments({
 ///
 /// The hook declares the manifest and every shader source file it
 /// references as build-system dependencies, so the bundle is rebuilt
-/// when any input changes.
+/// when any input changes. When the resolved `impellerc` supports
+/// `--depfile` in `--shader-bundle` mode, the hook also declares transitive
+/// `#include` dependencies from the generated depfile. Older `impellerc`
+/// builds fall back to the manifest scan.
 ///
 /// The optional [includeDirectories] are added to `impellerc`'s `#include`
 /// search path, after the manifest's directory and `impellerc`'s built-in
