@@ -1,9 +1,122 @@
 import 'dart:convert' as convert;
 import 'dart:io';
 
+import 'package:data_assets/data_assets.dart';
 import 'package:hooks/hooks.dart';
 
 import 'package:flutter_gpu_shaders/environment.dart';
+
+/// Controls whether [buildShaderBundleJson] registers the produced shader
+/// bundle as a Dart DataAsset.
+enum ShaderBundleAssetMode {
+  /// Preserve the historical behavior: only write
+  /// `build/shaderbundles/[name].shaderbundle`.
+  legacyOnly,
+
+  /// Register a DataAsset when the current Flutter/Dart build supports data
+  /// assets, and otherwise silently fall back to [legacyOnly].
+  dataAssetsIfAvailable,
+
+  /// Require DataAssets support and fail the build with a targeted error when
+  /// the current toolchain did not request data assets from the hook.
+  dataAssetsRequired,
+}
+
+/// Information about a shader bundle produced by [buildShaderBundleJson].
+final class ShaderBundleBuildResult {
+  const ShaderBundleBuildResult({
+    required this.outputFile,
+    required this.legacyAssetKey,
+    this.dataAssetName,
+    this.dataAssetId,
+    this.flutterAssetKey,
+  });
+
+  /// Absolute file URI of the generated `.shaderbundle`.
+  final Uri outputFile;
+
+  /// Historical Flutter asset key for projects listing the generated file in
+  /// `flutter.assets`.
+  final String legacyAssetKey;
+
+  /// DataAsset name registered for the generated bundle, when one was emitted.
+  final String? dataAssetName;
+
+  /// DataAsset package identifier, e.g.
+  /// `package:my_app/flutter_gpu_shaders/shaderbundles/materials.shaderbundle`.
+  final String? dataAssetId;
+
+  /// Flutter asset-bundle key for the DataAsset, when one was emitted.
+  ///
+  /// Flutter currently exposes DataAssets through the normal asset bundle under
+  /// `packages/<package>/<name>`.
+  final String? flutterAssetKey;
+}
+
+/// Returns the default DataAsset name for a generated shader bundle.
+String shaderBundleDataAssetName(String bundleFileName) =>
+    'flutter_gpu_shaders/shaderbundles/$bundleFileName';
+
+/// Returns the Flutter asset-bundle key for a DataAsset.
+String flutterDataAssetKey({required String package, required String name}) =>
+    'packages/$package/$name';
+
+/// Registers [outputBundleFile] as a DataAsset when [assetMode] allows it.
+///
+/// Returns the emitted asset metadata, or `null` when [assetMode] falls back to
+/// legacy output because data assets are not available.
+ShaderBundleBuildResult? registerShaderBundleDataAsset({
+  required BuildInput buildInput,
+  required BuildOutputBuilder buildOutput,
+  required Uri outputBundleFile,
+  required String legacyAssetKey,
+  required ShaderBundleAssetMode assetMode,
+  String? dataAssetName,
+}) {
+  if (assetMode == ShaderBundleAssetMode.legacyOnly) {
+    return null;
+  }
+  final dataAssetsAvailable = buildInput.config.buildDataAssets;
+  if (!dataAssetsAvailable) {
+    if (assetMode == ShaderBundleAssetMode.dataAssetsRequired) {
+      _throwDataAssetsUnavailable(legacyAssetKey);
+    }
+    return null;
+  }
+
+  final name =
+      dataAssetName ??
+      shaderBundleDataAssetName(legacyAssetKey.split('/').last);
+  final asset = DataAsset(
+    package: buildInput.packageName,
+    name: name,
+    file: outputBundleFile,
+  );
+  buildOutput.assets.data.add(asset);
+  return ShaderBundleBuildResult(
+    outputFile: outputBundleFile,
+    legacyAssetKey: legacyAssetKey,
+    dataAssetName: name,
+    dataAssetId: asset.id,
+    flutterAssetKey: flutterDataAssetKey(
+      package: buildInput.packageName,
+      name: name,
+    ),
+  );
+}
+
+Never _throwDataAssetsUnavailable(String legacyAssetKey) {
+  throw UnsupportedError(
+    'Dart DataAssets were requested for "$legacyAssetKey", but this Flutter '
+    'build did not enable data assets for hooks. DataAssets are currently '
+    'experimental and require a Flutter toolchain that supports the Dart data '
+    'assets feature. On supported Flutter master builds, run '
+    '`flutter config --enable-dart-data-assets` or set '
+    '`FLUTTER_DART_DATA_ASSETS=true`, then rebuild. Otherwise use '
+    'ShaderBundleAssetMode.legacyOnly and list "$legacyAssetKey" in '
+    'flutter.assets.',
+  );
+}
 
 /// Loads a shader bundle manifest file and builds a shader bundle.
 Future<void> _buildShaderBundleJson({
@@ -221,6 +334,14 @@ List<String> shaderBundleImpellercArguments({
 /// dependencies automatically; add them via [buildOutput] if edits to them
 /// should retrigger the build.
 ///
+/// Set [assetMode] to opt in to DataAssets registration. The default
+/// [ShaderBundleAssetMode.legacyOnly] preserves the historical behavior and
+/// requires listing the generated `.shaderbundle` in `flutter.assets`.
+/// [ShaderBundleAssetMode.dataAssetsIfAvailable] registers the bundle when the
+/// current toolchain supports Dart DataAssets and otherwise falls back to the
+/// legacy output. [ShaderBundleAssetMode.dataAssetsRequired] fails early with
+/// setup guidance when DataAssets are unavailable.
+///
 /// Example usage:
 ///
 /// hook/build.dart
@@ -247,11 +368,13 @@ List<String> shaderBundleImpellercArguments({
 ///     }
 /// }
 /// ```
-Future<void> buildShaderBundleJson({
+Future<ShaderBundleBuildResult> buildShaderBundleJson({
   required BuildInput buildInput,
   required BuildOutputBuilder buildOutput,
   required String manifestFileName,
   List<Uri> includeDirectories = const [],
+  ShaderBundleAssetMode assetMode = ShaderBundleAssetMode.legacyOnly,
+  String? dataAssetName,
 }) async {
   String outputFileName = Uri(path: manifestFileName).pathSegments.last;
   if (!outputFileName.endsWith('.shaderbundle.json')) {
@@ -268,13 +391,6 @@ Future<void> buildShaderBundleJson({
     outputFileName = outputFileName.substring(0, outputFileName.length - 5);
   }
 
-  // TODO(bdero): Migrate to writing to `buildInput.outputDirectory` and
-  // registering the produced bundle as a DataAsset via
-  // `output.assets.data.add(DataAsset(...))`. Tracked at
-  // https://github.com/bdero/flutter_scene/issues/106. Blocked on the
-  // `dartDataAssets` feature flipping to `enabledByDefault: true` in
-  // flutter_tools (currently `available: true` on master, so consumers
-  // would need a `flutter config --enable-dart-data-assets` step).
   final outDir = Directory.fromUri(
     buildInput.packageRoot.resolve('build/shaderbundles/'),
   );
@@ -283,6 +399,12 @@ Future<void> buildShaderBundleJson({
 
   final inFile = packageRoot.resolve(manifestFileName);
   final outFile = outDir.uri.resolve(outputFileName);
+  final legacyAssetKey = 'build/shaderbundles/$outputFileName';
+
+  if (assetMode == ShaderBundleAssetMode.dataAssetsRequired &&
+      !buildInput.config.buildDataAssets) {
+    _throwDataAssetsUnavailable(legacyAssetKey);
+  }
 
   await _buildShaderBundleJson(
     packageRoot: packageRoot,
@@ -291,4 +413,17 @@ Future<void> buildShaderBundleJson({
     buildOutput: buildOutput,
     includeDirectories: includeDirectories,
   );
+
+  return registerShaderBundleDataAsset(
+        buildInput: buildInput,
+        buildOutput: buildOutput,
+        outputBundleFile: outFile,
+        legacyAssetKey: legacyAssetKey,
+        assetMode: assetMode,
+        dataAssetName: dataAssetName,
+      ) ??
+      ShaderBundleBuildResult(
+        outputFile: outFile,
+        legacyAssetKey: legacyAssetKey,
+      );
 }

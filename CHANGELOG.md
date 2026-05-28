@@ -1,3 +1,13 @@
+## Unreleased
+
+* Added optional Dart DataAssets registration for shader bundles via
+  `ShaderBundleAssetMode`. The default remains legacy file output under
+  `build/shaderbundles/`, while `dataAssetsIfAvailable` registers the generated
+  `.shaderbundle` with the Flutter asset bundle when supported and falls back
+  otherwise.
+* `buildShaderBundleJson` now returns `ShaderBundleBuildResult`, including the
+  legacy asset key and DataAsset/Flutter asset keys when a DataAsset is emitted.
+
 ## 0.4.4
 
 * `buildShaderBundleJson` now consumes `impellerc` depfiles when the resolved
