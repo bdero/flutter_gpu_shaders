@@ -1,4 +1,4 @@
-## Unreleased
+## 0.4.5
 
 * Added optional Dart DataAssets registration for shader bundles via
   `ShaderBundleAssetMode`. The default remains legacy file output under
