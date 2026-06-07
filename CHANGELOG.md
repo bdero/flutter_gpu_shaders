@@ -1,3 +1,17 @@
+## 0.5.0
+
+* Fixed dependency tracking that made the build hook re-run on every build.
+  Manifest `file` entries are now resolved against the package root (matching
+  how `impellerc` resolves them) instead of the manifest's directory, which had
+  produced doubled, non-existent paths for manifests in a subdirectory.
+* Generated shader sources written under the package's `build/` directory are no
+  longer declared as build dependencies; depending on a regenerated output made
+  the hook perpetually out of date. Declare the real sources that produce them
+  instead.
+* Breaking: `collectShaderBundleDependencies` now requires a `packageRoot`
+  argument (used to resolve manifest `file` paths). Most consumers use
+  `buildShaderBundleJson`, whose signature is unchanged.
+
 ## 0.4.5
 
 * Added optional Dart DataAssets registration for shader bundles via

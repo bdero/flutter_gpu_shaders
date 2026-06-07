@@ -147,8 +147,10 @@ Future<void> _buildShaderBundleJson({
   /// transitive `#include`s; those dependencies are merged after a
   /// successful compile.
 
-  buildOutput.dependencies.addAll(
-    collectShaderBundleDependencies(inputManifestFilePath, decodedManifest),
+  final dependencies = collectShaderBundleDependencies(
+    inputManifestFilePath,
+    decodedManifest,
+    packageRoot: packageRoot,
   );
 
   /////////////////////////////////////////////////////////////////////////////
@@ -187,7 +189,7 @@ Future<void> _buildShaderBundleJson({
 
   if (supportsDepfile && await depfile.exists()) {
     final depfileContents = await depfile.readAsString();
-    buildOutput.dependencies.addAll(
+    dependencies.addAll(
       parseImpellerCDepfileDependencies(
         depfileContents,
         relativeTo: packageRoot,
@@ -195,6 +197,20 @@ Future<void> _buildShaderBundleJson({
     );
     await depfile.delete();
   }
+
+  // Declare the collected dependencies, excluding anything under the package's
+  // `build/` output directory. Generated shaders (for example synthesized from
+  // another format and written into `build/`) are rewritten on every build, so
+  // depending on them would make the hook re-run on every build. The real
+  // sources that produced them should be declared by their own producer.
+  final buildDirectory = packageRoot
+      .resolve('build/')
+      .toFilePath(windows: false);
+  buildOutput.dependencies.addAll(
+    dependencies.where(
+      (uri) => !uri.toFilePath(windows: false).startsWith(buildDirectory),
+    ),
+  );
 }
 
 String _impellerCHelpText(Uri impellercExec) {
@@ -210,16 +226,18 @@ String _impellerCHelpText(Uri impellercExec) {
 ///
 /// Returns the manifest URI itself plus the resolved URI of every
 /// shader source file referenced by a top-level entry's `file` key.
-/// Paths in the manifest are interpreted relative to the manifest's
-/// containing directory.
+/// Entry `file` paths are interpreted relative to [packageRoot], matching how
+/// `impellerc` resolves them (it runs with the package root as its working
+/// directory). Resolving them against the manifest's directory instead would
+/// produce paths that do not exist when the manifest lives in a subdirectory.
 ///
 /// Exposed so users authoring custom build hooks (and tests) can
 /// inspect the same dependency set [buildShaderBundleJson] declares.
 List<Uri> collectShaderBundleDependencies(
   Uri manifestUri,
-  Object decodedManifest,
-) {
-  final manifestDir = manifestUri.resolve('./');
+  Object decodedManifest, {
+  required Uri packageRoot,
+}) {
   final result = <Uri>[manifestUri];
   if (decodedManifest is! Map) {
     return result;
@@ -228,7 +246,7 @@ List<Uri> collectShaderBundleDependencies(
     if (value is! Map) continue;
     final file = value['file'];
     if (file is! String) continue;
-    result.add(manifestDir.resolve(file));
+    result.add(packageRoot.resolve(file));
   }
   return result;
 }

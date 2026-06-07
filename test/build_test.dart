@@ -8,7 +8,9 @@ import 'package:hooks/hooks.dart';
 
 void main() {
   group('collectShaderBundleDependencies', () {
-    test('returns the manifest plus each referenced shader file', () {
+    final packageRoot = Uri.parse('file:///pkg/');
+
+    test('resolves manifest file paths against the package root', () {
       final manifestUri = Uri.parse(
         'file:///pkg/shaders/bundle.shaderbundle.json',
       );
@@ -16,15 +18,19 @@ void main() {
         {
           "UnskinnedVertex": {
             "type": "vertex",
-            "file": "flutter_scene_unskinned.vert"
+            "file": "shaders/flutter_scene_unskinned.vert"
           },
           "StandardFragment": {
             "type": "fragment",
-            "file": "flutter_scene_standard.frag"
+            "file": "shaders/flutter_scene_standard.frag"
           }
         }
       ''');
-      final deps = collectShaderBundleDependencies(manifestUri, manifest);
+      final deps = collectShaderBundleDependencies(
+        manifestUri,
+        manifest,
+        packageRoot: packageRoot,
+      );
       expect(deps, [
         manifestUri,
         Uri.parse('file:///pkg/shaders/flutter_scene_unskinned.vert'),
@@ -32,22 +38,26 @@ void main() {
       ]);
     });
 
-    test('resolves subdirectory-relative paths against the manifest dir', () {
+    test('does not double the directory for a manifest in a subdirectory', () {
+      // Regression: `file` paths are package-root-relative (as impellerc
+      // resolves them), so a manifest under shaders/ referencing
+      // shaders/x.frag must not become shaders/shaders/x.frag.
       final manifestUri = Uri.parse(
         'file:///pkg/shaders/bundle.shaderbundle.json',
       );
       final manifest = convert.json.decode('''
         {
-          "DeepVertex": {
-            "type": "vertex",
-            "file": "stages/vertex/deep.vert"
-          }
+          "Frag": { "type": "fragment", "file": "shaders/example.frag" }
         }
       ''');
-      final deps = collectShaderBundleDependencies(manifestUri, manifest);
+      final deps = collectShaderBundleDependencies(
+        manifestUri,
+        manifest,
+        packageRoot: packageRoot,
+      );
       expect(deps, [
         manifestUri,
-        Uri.parse('file:///pkg/shaders/stages/vertex/deep.vert'),
+        Uri.parse('file:///pkg/shaders/example.frag'),
       ]);
     });
 
@@ -63,13 +73,21 @@ void main() {
           "Worse":  { "type": "vertex", "file": 42 }
         }
       ''');
-      final deps = collectShaderBundleDependencies(manifestUri, manifest);
+      final deps = collectShaderBundleDependencies(
+        manifestUri,
+        manifest,
+        packageRoot: packageRoot,
+      );
       expect(deps, [manifestUri, Uri.parse('file:///pkg/good.vert')]);
     });
 
     test('returns only the manifest when the decoded value is not a map', () {
       final manifestUri = Uri.parse('file:///pkg/bundle.shaderbundle.json');
-      final deps = collectShaderBundleDependencies(manifestUri, '[]');
+      final deps = collectShaderBundleDependencies(
+        manifestUri,
+        '[]',
+        packageRoot: packageRoot,
+      );
       expect(deps, [manifestUri]);
     });
   });
