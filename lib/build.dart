@@ -125,6 +125,7 @@ Future<void> _buildShaderBundleJson({
   required Uri outputBundleFilePath,
   required BuildOutputBuilder buildOutput,
   required List<Uri> includeDirectories,
+  int? glesLanguageVersion,
 }) async {
   /////////////////////////////////////////////////////////////////////////////
   /// 1. Parse the manifest file.
@@ -174,6 +175,7 @@ Future<void> _buildShaderBundleJson({
     shaderLibDirectory: shaderLibPath,
     includeDirectories: includeDirectories,
     depfilePath: supportsDepfile ? depfilePath : null,
+    glesLanguageVersion: glesLanguageVersion,
   );
 
   final impellerc = Process.runSync(
@@ -312,11 +314,14 @@ List<String> shaderBundleImpellercArguments({
   required Uri shaderLibDirectory,
   List<Uri> includeDirectories = const [],
   Uri? depfilePath,
+  int? glesLanguageVersion,
 }) {
   return [
     '--sl=${outputBundleFilePath.toFilePath()}',
     '--shader-bundle=$manifestJson',
     if (depfilePath != null) '--depfile=${depfilePath.toFilePath()}',
+    if (glesLanguageVersion != null)
+      '--gles-language-version=$glesLanguageVersion',
     '--include=${manifestDirectory.toFilePath()}',
     '--include=${shaderLibDirectory.toFilePath()}',
     for (final directory in includeDirectories)
@@ -351,6 +356,12 @@ List<String> shaderBundleImpellercArguments({
 /// pass it here. Files resolved through these directories are not declared as
 /// dependencies automatically; add them via [buildOutput] if edits to them
 /// should retrigger the build.
+///
+/// The optional [glesLanguageVersion] is forwarded to `impellerc` as
+/// `--gles-language-version` and selects the GLSL ES version of the bundle's
+/// OpenGL ES shaders (for example `300` emits `#version 300 es`, where
+/// `textureLod` and friends are core rather than extensions). When omitted,
+/// `impellerc` defaults to GLSL ES 1.00.
 ///
 /// Set [assetMode] to opt in to DataAssets registration. The default
 /// [ShaderBundleAssetMode.legacyOnly] preserves the historical behavior and
@@ -393,6 +404,7 @@ Future<ShaderBundleBuildResult> buildShaderBundleJson({
   List<Uri> includeDirectories = const [],
   ShaderBundleAssetMode assetMode = ShaderBundleAssetMode.legacyOnly,
   String? dataAssetName,
+  int? glesLanguageVersion,
 }) async {
   String outputFileName = Uri(path: manifestFileName).pathSegments.last;
   if (!outputFileName.endsWith('.shaderbundle.json')) {
@@ -430,6 +442,7 @@ Future<ShaderBundleBuildResult> buildShaderBundleJson({
     outputBundleFilePath: outFile,
     buildOutput: buildOutput,
     includeDirectories: includeDirectories,
+    glesLanguageVersion: glesLanguageVersion,
   );
 
   return registerShaderBundleDataAsset(

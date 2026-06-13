@@ -2,14 +2,20 @@ import 'dart:io';
 
 import 'package:flutter_gpu_shaders/base.dart';
 
+// The SDK cache keeps macOS host artifacts under darwin-x64 on every Mac
+// (including arm64 hosts), but Linux arm64 hosts get their own directory.
 const _macosHostArtifacts = 'darwin-x64';
 const _linuxHostArtifacts = 'linux-x64';
+const _linuxArm64HostArtifacts = 'linux-arm64';
 const _windowsHostArtifacts = 'windows-x64';
+const _windowsArm64HostArtifacts = 'windows-arm64';
 
 const _impellercLocations = [
   '$_macosHostArtifacts/impellerc',
   '$_linuxHostArtifacts/impellerc',
+  '$_linuxArm64HostArtifacts/impellerc',
   '$_windowsHostArtifacts/impellerc.exe',
+  '$_windowsArm64HostArtifacts/impellerc.exe',
 ];
 
 /// Locate the engine artifacts cache directory in the Flutter SDK.
