@@ -1,3 +1,13 @@
+## 0.5.1
+
+* Added a `glesLanguageVersion` option to `buildShaderBundleJson` (and
+  `shaderBundleImpellercArguments`), forwarded to `impellerc` as
+  `--gles-language-version`. Setting `300` emits `#version 300 es` OpenGL ES
+  shaders, where explicit-LOD sampling and derivatives are core rather than
+  extension-gated.
+* `findImpellerC` now also probes the `linux-arm64` and `windows-arm64` engine
+  artifact directories; the previous x64-only list failed on Linux arm64 hosts.
+
 ## 0.5.0
 
 * Fixed dependency tracking that made the build hook re-run on every build.
