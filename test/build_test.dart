@@ -1,6 +1,7 @@
 import 'dart:convert' as convert;
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:data_assets/data_assets.dart';
 import 'package:flutter_gpu_shaders/build.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -309,6 +310,67 @@ void main() {
       expect(asset.file, outputFile);
       expect(asset.name, 'custom/materials.shaderbundle');
       expect(asset.package, 'example_app');
+    });
+  });
+
+  group('engine stamp', () {
+    late Directory temp;
+    late Uri impellerc;
+    late Uri stamp;
+
+    setUp(() {
+      temp = Directory.systemTemp.createTempSync('flutter_gpu_shaders_stamp');
+      impellerc = temp.uri.resolve('impellerc');
+      File.fromUri(impellerc).writeAsBytesSync([1, 2, 3, 4]);
+      stamp = engineStampUriForBundle(temp.uri.resolve('base.shaderbundle'));
+    });
+
+    tearDown(() => temp.deleteSync(recursive: true));
+
+    test('stamp content hashes the compiler binary', () async {
+      final contents = await engineStampJson(
+        impellercExec: impellerc,
+        glesLanguageVersion: 300,
+      );
+      final decoded = convert.json.decode(contents) as Map<String, dynamic>;
+      expect(
+        decoded['impellerc_sha256'],
+        crypto.sha256.convert([1, 2, 3, 4]).toString(),
+      );
+      expect(decoded['gles_language_version'], 300);
+    });
+
+    test('write is skipped when the content is unchanged', () async {
+      await writeEngineStampIfChanged(
+        stampUri: stamp,
+        impellercExec: impellerc,
+      );
+      final file = File.fromUri(stamp);
+      // The fresh write is backdated so hook runners never see the stamp as
+      // modified during the build.
+      expect(file.lastModifiedSync().toUtc(), DateTime.utc(2000));
+      file.setLastModifiedSync(DateTime.utc(2010));
+
+      await writeEngineStampIfChanged(
+        stampUri: stamp,
+        impellercExec: impellerc,
+      );
+      expect(file.lastModifiedSync().toUtc(), DateTime.utc(2010));
+    });
+
+    test('a changed compiler rewrites the stamp', () async {
+      await writeEngineStampIfChanged(
+        stampUri: stamp,
+        impellercExec: impellerc,
+      );
+      final before = File.fromUri(stamp).readAsStringSync();
+
+      File.fromUri(impellerc).writeAsBytesSync([5, 6, 7, 8]);
+      await writeEngineStampIfChanged(
+        stampUri: stamp,
+        impellercExec: impellerc,
+      );
+      expect(File.fromUri(stamp).readAsStringSync(), isNot(before));
     });
   });
 }

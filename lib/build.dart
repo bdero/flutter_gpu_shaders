@@ -1,6 +1,7 @@
 import 'dart:convert' as convert;
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:data_assets/data_assets.dart';
 import 'package:hooks/hooks.dart';
 
@@ -200,6 +201,13 @@ Future<void> _buildShaderBundleJson({
     await depfile.delete();
   }
 
+  // The produced bundle is tied to the engine build that supplied `impellerc`
+  // (the compiler ships in lockstep with the engine artifacts), so the
+  // compiler binary is a build input like any shader source. Content-hashing
+  // it reruns this hook on engine changes that the Dart SDK version alone
+  // does not reveal.
+  dependencies.add(impellercExec);
+
   // Declare the collected dependencies, excluding anything under the package's
   // `build/` output directory. Generated shaders (for example synthesized from
   // another format and written into `build/`) are rewritten on every build, so
@@ -213,6 +221,67 @@ Future<void> _buildShaderBundleJson({
       (uri) => !uri.toFilePath(windows: false).startsWith(buildDirectory),
     ),
   );
+
+  // The output path is shared through the pub cache, so another project
+  // (possibly on a different Flutter SDK) can rewrite the same bundle file
+  // with a different `impellerc`. The stamp records which compiler last wrote
+  // the bundle; declaring it as a dependency turns such a rewrite into a hash
+  // mismatch that reruns this hook. Declared after the `build/` filter above
+  // because the stamp deliberately lives next to the bundle.
+  final stampUri = engineStampUriForBundle(outputBundleFilePath);
+  await writeEngineStampIfChanged(
+    stampUri: stampUri,
+    impellercExec: impellercExec,
+    glesLanguageVersion: glesLanguageVersion,
+  );
+  buildOutput.dependencies.add(stampUri);
+}
+
+/// The engine-stamp path for a shader bundle at [outputBundleFilePath].
+Uri engineStampUriForBundle(Uri outputBundleFilePath) =>
+    Uri.file('${outputBundleFilePath.toFilePath()}.engine_stamp.json');
+
+/// JSON stamp identifying the compiler configuration a bundle was built with.
+Future<String> engineStampJson({
+  required Uri impellercExec,
+  int? glesLanguageVersion,
+}) async {
+  final digest = crypto.sha256.convert(
+    await File.fromUri(impellercExec).readAsBytes(),
+  );
+  return convert.json.encode({
+    'impellerc_sha256': digest.toString(),
+    'gles_language_version': ?glesLanguageVersion,
+  });
+}
+
+/// Writes the engine stamp for [impellercExec] to [stampUri], skipping the
+/// write when the on-disk content already matches.
+///
+/// Skipping matters because hook runners flag any tracked file modified
+/// during the build and would otherwise rerun the hook on every build. For
+/// the same reason a genuine rewrite backdates the stamp's mtime; change
+/// detection is content-hash based, so the mtime carries no information.
+Future<void> writeEngineStampIfChanged({
+  required Uri stampUri,
+  required Uri impellercExec,
+  int? glesLanguageVersion,
+}) async {
+  final contents = await engineStampJson(
+    impellercExec: impellercExec,
+    glesLanguageVersion: glesLanguageVersion,
+  );
+  final file = File.fromUri(stampUri);
+  if (await file.exists() && await file.readAsString() == contents) {
+    return;
+  }
+  await file.writeAsString(contents);
+  try {
+    file.setLastModifiedSync(DateTime.utc(2000));
+  } on FileSystemException {
+    // Backdating is best-effort; without it the runner reruns the hook once
+    // more before the stamp settles.
+  }
 }
 
 String _impellerCHelpText(Uri impellercExec) {
