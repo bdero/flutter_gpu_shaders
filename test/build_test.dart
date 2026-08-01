@@ -236,21 +236,65 @@ void main() {
       );
     });
 
-    test('falls back when DataAssets are unavailable', () {
+    test('warns when DataAssets are unavailable', () {
       final input = _buildInput(buildDataAssets: false);
       final output = BuildOutputBuilder();
-      final result = registerShaderBundleDataAsset(
-        buildInput: input,
-        buildOutput: output,
-        outputBundleFile: Uri.parse(
-          'file:///pkg/build/shaderbundles/materials.shaderbundle',
-        ),
-        legacyAssetKey: 'build/shaderbundles/materials.shaderbundle',
-        assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
-      );
+      ShaderBundleBuildResult? result;
+      expect(() {
+        result = registerShaderBundleDataAsset(
+          buildInput: input,
+          buildOutput: output,
+          outputBundleFile: Uri.parse(
+            'file:///pkg/build/shaderbundles/materials.shaderbundle',
+          ),
+          legacyAssetKey: 'build/shaderbundles/materials.shaderbundle',
+          assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
+        );
+      }, prints(contains('DataAssets are unavailable')));
 
       expect(result, isNull);
       expect(output.build().assets.encodedAssets, isEmpty);
+    });
+
+    test('warns when legacy mode is selected', () {
+      ShaderBundleBuildResult? result;
+      expect(
+        () {
+          result = registerShaderBundleDataAsset(
+            buildInput: _buildInput(buildDataAssets: true),
+            buildOutput: BuildOutputBuilder(),
+            outputBundleFile: Uri.parse(
+              'file:///pkg/build/shaderbundles/materials.shaderbundle',
+            ),
+            legacyAssetKey: 'build/shaderbundles/materials.shaderbundle',
+            assetMode: ShaderBundleAssetMode.legacyOnly,
+          );
+        },
+        prints(
+          allOf(
+            contains('legacy generated assets'),
+            contains('tied to the active Flutter engine'),
+          ),
+        ),
+      );
+
+      expect(result, isNull);
+    });
+
+    test('allows an aggregating hook to suppress the legacy warning', () {
+      expect(
+        () => registerShaderBundleDataAsset(
+          buildInput: _buildInput(buildDataAssets: true),
+          buildOutput: BuildOutputBuilder(),
+          outputBundleFile: Uri.parse(
+            'file:///pkg/build/shaderbundles/materials.shaderbundle',
+          ),
+          legacyAssetKey: 'build/shaderbundles/materials.shaderbundle',
+          assetMode: ShaderBundleAssetMode.legacyOnly,
+          warnIfLegacy: false,
+        ),
+        prints(isEmpty),
+      );
     });
 
     test('throws when DataAssets are required but unavailable', () {

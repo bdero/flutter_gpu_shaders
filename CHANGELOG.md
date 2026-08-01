@@ -1,5 +1,6 @@
 ## 0.5.2
 
+* Made DataAssets the recommended shader bundle path and warn on unmanaged legacy outputs.
 * Track the `impellerc` binary as a build input, so bundles rebuild whenever the engine artifacts change.
 * Write an engine stamp beside each bundle, so a shared pub-cache bundle rewritten by another project (or Flutter SDK) triggers a rebuild instead of shipping a wrong-engine bundle.
 

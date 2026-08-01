@@ -2,12 +2,22 @@ Build tools for Flutter GPU shader bundles/libraries.
 
 ## Features
 
-Use native asset build hooks to import Flutter GPU shader bundle assets.
+Use build hooks to compile Flutter GPU shaders and register the resulting
+bundle as a managed Dart DataAsset.
 
 ## Getting started
 
-1. Place some Flutter GPU shaders in your project. For this example, we'll assume the existence of two shaders: `shaders/my_cool_shader.vert` and `shaders/my_cool_shader.frag`.
-2. Create a shader bundle manifest file in your project. The filename must end with `.shaderbundle.json`. For this example, we'll assume the following file is saved as `my_cool_bundle.shaderbundle.json`:
+1. Enable Dart DataAssets once for your Flutter SDK.
+
+    ```sh
+    flutter config --enable-dart-data-assets
+    ```
+
+2. Place Flutter GPU shader sources in your project. This example uses
+   `shaders/my_cool_shader.vert` and `shaders/my_cool_shader.frag`.
+
+3. Create a source manifest named `my_cool_bundle.shaderbundle.json`.
+
     ```json
     {
         "CoolVertex": {
@@ -20,7 +30,15 @@ Use native asset build hooks to import Flutter GPU shader bundle assets.
         }
     }
     ```
-3. Next, define a build hook in your project that builds the shader bundle using `buildShaderBundleJson`. The build hook must be named `hook/build.dart` in your project; this script will be automatically invoked by Flutter:
+
+    The manifest and shader sources are portable build inputs and belong in
+    version control. The generated `.shaderbundle` is compiled by the active
+    Flutter engine's `impellerc`. It is an engine-coupled intermediary and must
+    not be committed.
+
+4. Define `hook/build.dart` and register the generated bundle as a required
+   DataAsset.
+
     ```dart
     import 'package:hooks/hooks.dart';
     import 'package:flutter_gpu_shaders/build.dart';
@@ -28,45 +46,28 @@ Use native asset build hooks to import Flutter GPU shader bundle assets.
     void main(List<String> args) async {
       await build(args, (config, output) async {
         await buildShaderBundleJson(
-            buildInput: config,
-            buildOutput: output,
-            manifestFileName: 'my_cool_bundle.shaderbundle.json');
+          buildInput: config,
+          buildOutput: output,
+          manifestFileName: 'my_cool_bundle.shaderbundle.json',
+          assetMode: ShaderBundleAssetMode.dataAssetsRequired,
+        );
       });
     }
     ```
-    `buildShaderBundleJson` always declares the manifest and directly listed
-    shader files as build dependencies. With Flutter SDKs whose `impellerc`
-    supports `--depfile` for shader bundles, it also declares transitive
-    `#include` dependencies from the generated depfile. Older `impellerc`
-    builds continue to use the manifest scan fallback.
-4. In your project's `pubspec.yaml`, add the built shader bundle as an asset:
-    ```yaml
-    flutter:
-      assets:
-        - build/shaderbundles/my_cool_bundle.shaderbundle
-    ```
-5. If your Flutter toolchain supports Dart DataAssets, you can opt in to
-   registering the generated bundle with the Flutter asset bundle instead of
-   listing it in `pubspec.yaml`:
-    ```dart
-    await buildShaderBundleJson(
-      buildInput: config,
-      buildOutput: output,
-      manifestFileName: 'my_cool_bundle.shaderbundle.json',
-      assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
-    );
-    ```
-   With DataAssets enabled, the result's `flutterAssetKey` is the key to pass
-   to `gpu.ShaderLibrary.fromAsset`. When DataAssets are unavailable,
-   `dataAssetsIfAvailable` falls back to the legacy file output. Use
-   `ShaderBundleAssetMode.dataAssetsRequired` to fail fast with guidance
-   instead.
-6. You can now import the built shader bundle as a library using `gpu.ShaderLibrary.fromAsset` in your project. For example:
+
+    The hook declares the manifest and directly listed shader files as build
+    dependencies. With Flutter SDKs whose `impellerc` supports `--depfile` for
+    shader bundles, it also declares transitive `#include` dependencies.
+
+5. Load the DataAsset using its Flutter asset key. The default key is
+   `packages/<package>/flutter_gpu_shaders/shaderbundles/<bundle>.shaderbundle`.
+
     ```dart
     import 'package:flutter_gpu/gpu.dart' as gpu;
 
     final String _kBaseShaderBundlePath =
-        'build/shaderbundles/my_cool_bundle.shaderbundle';
+        'packages/my_app/flutter_gpu_shaders/shaderbundles/'
+        'my_cool_bundle.shaderbundle';
 
     gpu.ShaderLibrary? _baseShaderLibrary;
     gpu.ShaderLibrary get baseShaderLibrary {
@@ -82,3 +83,8 @@ Use native asset build hooks to import Flutter GPU shader bundle assets.
           "Failed to load base shader bundle! ($_kBaseShaderBundlePath)");
     }
     ```
+
+Do not list generated shader bundles in `flutter.assets`.
+`ShaderBundleAssetMode.legacyOnly` and `dataAssetsIfAvailable` remain available
+for older Flutter toolchains. They emit a warning when the generated bundle is
+not managed as a DataAsset.
