@@ -2,6 +2,7 @@
 
 * Track the `impellerc` binary as a build input, so bundles rebuild whenever the engine artifacts change.
 * Write an engine stamp beside each bundle, so a shared pub-cache bundle rewritten by another project (or Flutter SDK) triggers a rebuild instead of shipping a wrong-engine bundle.
+* Recover depfile dependency paths containing spaces (`impellerc` writes them unescaped); a split path declared a nonexistent dependency, which made the hook re-run on every build for SDKs under paths like `Application Support`.
 
 ## 0.5.1
 

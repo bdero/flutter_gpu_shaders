@@ -338,10 +338,21 @@ bool impellerCHelpSupportsDepfile(String helpText) {
 /// `<target>: <dep1> <dep2> ...`. The target is ignored. Dependency paths are
 /// converted to file URIs; relative paths are resolved against [relativeTo]
 /// when it is provided.
+///
+/// `impellerc` writes paths without escaping, so a path containing a space
+/// (for example an SDK under `Application Support`) arrives split across
+/// several whitespace-separated tokens. When a token's path does not exist on
+/// disk, adjacent tokens are rejoined with single spaces until the combined
+/// path exists, recovering the original path. [fileExists] is the existence
+/// probe (overridable for tests); tokens that never combine into an existing
+/// path are kept as split, matching the old behavior. Escaped spaces (`\ `)
+/// are also honored should `impellerc` start emitting them.
 List<Uri> parseImpellerCDepfileDependencies(
   String depfileContents, {
   Uri? relativeTo,
+  bool Function(String path)? fileExists,
 }) {
+  final exists = fileExists ?? (path) => File(path).existsSync();
   final separator = RegExp(r':(?:\s|$)').firstMatch(depfileContents);
   if (separator == null) {
     return const [];
@@ -350,16 +361,44 @@ List<Uri> parseImpellerCDepfileDependencies(
   if (dependencies.isEmpty) {
     return const [];
   }
-  return dependencies
-      .split(RegExp(r'\s+'))
+  final tokens = dependencies
+      .split(RegExp(r'(?<!\\)\s+'))
       .where((dependency) => dependency.isNotEmpty)
-      .map((dependency) {
-        if (_isAbsoluteFilePath(dependency)) {
-          return Uri.file(dependency);
-        }
-        return relativeTo?.resolve(dependency) ?? Uri.file(dependency);
-      })
+      .map((dependency) => dependency.replaceAll(r'\ ', ' '))
       .toList();
+
+  String resolvePath(String token) => _isAbsoluteFilePath(token)
+      ? token
+      : (relativeTo?.resolveUri(Uri.file(token)).toFilePath() ?? token);
+
+  final paths = <String>[];
+  for (var i = 0; i < tokens.length;) {
+    var token = tokens[i];
+    var consumed = 1;
+    if (!exists(resolvePath(token))) {
+      // Try rejoining successive tokens; accept the first combination that
+      // names a real file.
+      var candidate = token;
+      for (var j = i + 1; j < tokens.length; j++) {
+        candidate = '$candidate ${tokens[j]}';
+        if (exists(resolvePath(candidate))) {
+          token = candidate;
+          consumed = j - i + 1;
+          break;
+        }
+      }
+    }
+    paths.add(token);
+    i += consumed;
+  }
+
+  return [
+    for (final path in paths)
+      if (_isAbsoluteFilePath(path))
+        Uri.file(path)
+      else
+        relativeTo?.resolveUri(Uri.file(path)) ?? Uri.file(path),
+  ];
 }
 
 bool _isAbsoluteFilePath(String path) {

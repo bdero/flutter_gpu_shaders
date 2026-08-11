@@ -218,6 +218,66 @@ void main() {
       expect(parseImpellerCDepfileDependencies('target:'), isEmpty);
       expect(parseImpellerCDepfileDependencies(''), isEmpty);
     });
+
+    test('rejoins unescaped spaces when the combined path exists', () {
+      final onDisk = {
+        '/Users/u/Library/Application Support/sdk/shader_lib/types.glsl',
+        '/pkg/shaders/main.frag',
+      };
+      final deps = parseImpellerCDepfileDependencies(
+        'bundle.shaderbundle: '
+        '/Users/u/Library/Application Support/sdk/shader_lib/types.glsl '
+        '/pkg/shaders/main.frag',
+        fileExists: onDisk.contains,
+      );
+      expect(deps, [
+        Uri.parse(
+          'file:///Users/u/Library/Application%20Support/sdk/shader_lib/types.glsl',
+        ),
+        Uri.parse('file:///pkg/shaders/main.frag'),
+      ]);
+    });
+
+    test('rejoins a path containing several spaces', () {
+      final onDisk = {'/a/one two three/dep.glsl'};
+      final deps = parseImpellerCDepfileDependencies(
+        'target: /a/one two three/dep.glsl',
+        fileExists: onDisk.contains,
+      );
+      expect(deps, [Uri.parse('file:///a/one%20two%20three/dep.glsl')]);
+    });
+
+    test('honors escaped spaces without an existence probe', () {
+      final deps = parseImpellerCDepfileDependencies(
+        r'target: /a/one\ two/dep.glsl /pkg/main.frag',
+        fileExists: (_) => false,
+      );
+      expect(deps, [
+        Uri.parse('file:///a/one%20two/dep.glsl'),
+        Uri.parse('file:///pkg/main.frag'),
+      ]);
+    });
+
+    test('keeps genuinely missing paths split as written', () {
+      final deps = parseImpellerCDepfileDependencies(
+        'target: /gone/a.glsl /gone/b.glsl',
+        fileExists: (_) => false,
+      );
+      expect(deps, [
+        Uri.parse('file:///gone/a.glsl'),
+        Uri.parse('file:///gone/b.glsl'),
+      ]);
+    });
+
+    test('rejoins relative spaced paths against the base URI', () {
+      final onDisk = {'/pkg/shader lib/common.glsl'};
+      final deps = parseImpellerCDepfileDependencies(
+        'target: shader lib/common.glsl',
+        relativeTo: Uri.parse('file:///pkg/'),
+        fileExists: onDisk.contains,
+      );
+      expect(deps, [Uri.parse('file:///pkg/shader%20lib/common.glsl')]);
+    });
   });
 
   group('DataAsset registration', () {
