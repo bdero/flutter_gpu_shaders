@@ -66,6 +66,8 @@ String flutterDataAssetKey({required String package, required String name}) =>
 ///
 /// Returns the emitted asset metadata, or `null` when [assetMode] falls back to
 /// legacy output because data assets are not available.
+/// Set [warnIfLegacy] to `false` only when a higher-level hook registers the
+/// generated bundle itself.
 ShaderBundleBuildResult? registerShaderBundleDataAsset({
   required BuildInput buildInput,
   required BuildOutputBuilder buildOutput,
@@ -73,8 +75,18 @@ ShaderBundleBuildResult? registerShaderBundleDataAsset({
   required String legacyAssetKey,
   required ShaderBundleAssetMode assetMode,
   String? dataAssetName,
+  bool warnIfLegacy = true,
 }) {
   if (assetMode == ShaderBundleAssetMode.legacyOnly) {
+    if (warnIfLegacy) {
+      // ignore: avoid_print
+      print(
+        'flutter_gpu_shaders warning, using legacy generated assets for '
+        '"$legacyAssetKey". Shader bundles are tied to the active Flutter '
+        'engine. Use ShaderBundleAssetMode.dataAssetsRequired instead of '
+        'committing generated bundles or listing them in flutter.assets.',
+      );
+    }
     return null;
   }
   final dataAssetsAvailable = buildInput.config.buildDataAssets;
@@ -82,6 +94,13 @@ ShaderBundleBuildResult? registerShaderBundleDataAsset({
     if (assetMode == ShaderBundleAssetMode.dataAssetsRequired) {
       _throwDataAssetsUnavailable(legacyAssetKey);
     }
+    // ignore: avoid_print
+    print(
+      'flutter_gpu_shaders warning, Dart DataAssets are unavailable, so '
+      '"$legacyAssetKey" was not '
+      'registered as a managed asset. Enable DataAssets or use '
+      'ShaderBundleAssetMode.dataAssetsRequired to fail instead.',
+    );
     return null;
   }
 
@@ -471,13 +490,15 @@ List<String> shaderBundleImpellercArguments({
 /// `textureLod` and friends are core rather than extensions). When omitted,
 /// `impellerc` defaults to GLSL ES 1.00.
 ///
-/// Set [assetMode] to opt in to DataAssets registration. The default
+/// Set [assetMode] to [ShaderBundleAssetMode.dataAssetsRequired] for new
+/// applications. This registers the generated `.shaderbundle` as a managed
+/// DataAsset and fails early with setup guidance when DataAssets are
+/// unavailable. The generated bundle is tied to the active Flutter engine and
+/// must not be committed or listed in `flutter.assets`.
+///
 /// [ShaderBundleAssetMode.legacyOnly] preserves the historical behavior and
-/// requires listing the generated `.shaderbundle` in `flutter.assets`.
-/// [ShaderBundleAssetMode.dataAssetsIfAvailable] registers the bundle when the
-/// current toolchain supports Dart DataAssets and otherwise falls back to the
-/// legacy output. [ShaderBundleAssetMode.dataAssetsRequired] fails early with
-/// setup guidance when DataAssets are unavailable.
+/// [ShaderBundleAssetMode.dataAssetsIfAvailable] falls back to it when
+/// DataAssets are unavailable. Both fallback paths emit a migration warning.
 ///
 /// Example usage:
 ///
@@ -491,7 +512,8 @@ List<String> shaderBundleImpellercArguments({
 ///     await buildShaderBundleJson(
 ///         buildInput: config,
 ///         buildOutput: output,
-///         manifestFileName: 'my_cool_bundle.shaderbundle.json');
+///         manifestFileName: 'my_cool_bundle.shaderbundle.json',
+///         assetMode: ShaderBundleAssetMode.dataAssetsRequired);
 ///   });
 /// }
 /// ```
@@ -560,6 +582,9 @@ Future<ShaderBundleBuildResult> buildShaderBundleJson({
         legacyAssetKey: legacyAssetKey,
         assetMode: assetMode,
         dataAssetName: dataAssetName,
+        // Generated manifests are owned by a higher-level hook that registers
+        // the final bundle and sidecars itself.
+        warnIfLegacy: !manifestFileName.startsWith('build/'),
       ) ??
       ShaderBundleBuildResult(
         outputFile: outFile,
